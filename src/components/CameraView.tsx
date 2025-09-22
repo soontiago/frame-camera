@@ -258,8 +258,13 @@ export default function CameraView({ onCapture }: CameraViewProps) {
 
           let valid = false
           let corners: Corners | null = null
+          let statusMsg = ''
 
-          if (hands.length >= 2) {
+          if (hands.length === 0) {
+            statusMsg = 'Hands up!'
+          } else if (hands.length === 1) {
+            statusMsg = 'Other hand up as well'
+          } else if (hands.length >= 2) {
             const res = computeDirectorFrame(hands[0], hands[1])
             valid = res.valid
             if (res.corners) {
@@ -295,12 +300,10 @@ export default function CameraView({ onCapture }: CameraViewProps) {
                 if (!localStable) {
                   stableSinceRef.current = null
                 }
-                const heldMs = stableSinceRef.current ? now - stableSinceRef.current : 0
-                if (localStable && heldMs > 0) {
-                  const pct = Math.min(1, heldMs / AUTO_CAPTURE_MS)
-                  setStatus(`Auto-capturing ${Math.round(pct * 100)}%`)
-                } else {
-                  setStatus('Hold steady to capture')
+                // Helper text: once contact threshold reached (valid), prompt to hold steady
+                statusMsg = 'Contact your fingertips to Frame and Capture'
+                if (valid) {
+                  statusMsg = 'Hold steady'
                 }
                 if (!capturingRef.current && localStable && stableSinceRef.current && now - stableSinceRef.current >= AUTO_CAPTURE_MS) {
                   capturingRef.current = true
@@ -310,18 +313,15 @@ export default function CameraView({ onCapture }: CameraViewProps) {
                   stableSinceRef.current = null
                 }
               }
+            } else {
+              statusMsg = 'Contact your fingertips to Frame and Capture'
             }
-          } else {
-            cornersHistoryRef.current = []
           }
 
           setGestureValid(valid)
           setCurrentCorners(corners)
           drawOverlay(hands)
-
-          if (!valid) {
-            setStatus('Show fingertip contacts to frame')
-          }
+          if (statusMsg) setStatus(statusMsg)
         }
       } catch (e) {
         // Avoid crashing the loop
@@ -341,12 +341,6 @@ export default function CameraView({ onCapture }: CameraViewProps) {
     }
   }, [startStream])
 
-  const handleCapture = useCallback(async () => {
-    if (!(gestureValid && gestureStable)) return
-    triggerFlashAndHaptic()
-    await captureInternal(currentCorners)
-  }, [captureInternal, currentCorners, gestureStable, gestureValid, triggerFlashAndHaptic])
-
   return (
     <div className="relative w-screen h-screen bg-black overflow-hidden">
       <video
@@ -365,22 +359,10 @@ export default function CameraView({ onCapture }: CameraViewProps) {
         <div className="absolute inset-0 bg-white/80 pointer-events-none" />
       )}
 
-      <div className="absolute top-0 left-0 m-3 px-2 py-1 bg-black/50 rounded text-xs">
-        {status}
-      </div>
-
       <div className="pointer-events-none absolute inset-0 flex items-start justify-center pt-6">
         <div className="px-4 py-2 rounded-lg bg-black/80 text-white text-base md:text-lg shadow-lg">
           {status}
         </div>
-      </div>
-
-      <div className="absolute bottom-6 left-0 right-0 flex justify-center">
-        <button
-          className={`h-16 w-16 rounded-full shadow border ${gestureValid && gestureStable ? 'bg-green-500 border-green-400' : 'bg-white/40 border-white/30'} `}
-          onClick={handleCapture}
-          aria-label="Capture"
-        />
       </div>
     </div>
   )
