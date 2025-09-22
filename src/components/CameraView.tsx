@@ -111,6 +111,7 @@ export default function CameraView({ onCapture }: CameraViewProps) {
   const [status, setStatus] = useState('Initializing camera...')
   const trackerRef = useRef<HandTracker | null>(null)
   const rafRef = useRef<number | null>(null)
+  const shutterAudioRef = useRef<HTMLAudioElement | null>(null)
 
   const cornersHistoryRef = useRef<Corners[]>([])
   const [currentCorners, setCurrentCorners] = useState<Corners | null>(null)
@@ -204,6 +205,14 @@ export default function CameraView({ onCapture }: CameraViewProps) {
     if ('vibrate' in navigator) {
       try { navigator.vibrate(100) } catch {}
     }
+    // Play shutter sound if available
+    try {
+      const audio = shutterAudioRef.current
+      if (audio) {
+        audio.currentTime = 0
+        void audio.play()
+      }
+    } catch {}
   }, [])
 
   const captureInternal = useCallback(async (corners: Corners | null) => {
@@ -333,6 +342,14 @@ export default function CameraView({ onCapture }: CameraViewProps) {
   }, [drawOverlay, triggerFlashAndHaptic, captureInternal])
 
   useEffect(() => {
+    // Preload shutter sound
+    try {
+      const audio = new Audio('/shutter_snap.mp3')
+      audio.preload = 'auto'
+      audio.volume = 1
+      shutterAudioRef.current = audio
+    } catch {}
+
     startStream()
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
