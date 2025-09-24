@@ -24,6 +24,14 @@ function App() {
       {mode === 'result' && imageUrl && (
         <CaptureResult imageUrl={imageUrl} onRetake={handleRetake} />
       )}
+      <a
+        href="https://soon.work/"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="fixed bottom-2 left-2 text-md font-semibold text-gray-800 opacity-30 hover:opacity-80 transition-opacity"
+      >
+        @soontiago
+      </a>
     </div>
   )
 }
