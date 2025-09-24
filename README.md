@@ -1,6 +1,6 @@
 ## Frame Camera
 
-![Frame Camera screenshot](/framecam_ss.webp)
+![Frame Camera screenshot](/public/framecam_ss.webp)
 
 A browser-based camera demo where you make a rectangle with your thumbs and index fingers to "frame" a shot. Hold the gesture steady and the app auto-captures, flashes, and lets you save the cropped image.
 
