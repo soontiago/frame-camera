@@ -14,7 +14,7 @@ const processingConstraints: MediaStreamConstraints = {
   audio: false,
 }
 
-const AUTO_CAPTURE_MS = 100
+const AUTO_CAPTURE_MS = 300
 
 type Point = { x: number; y: number }
 interface Corners {
