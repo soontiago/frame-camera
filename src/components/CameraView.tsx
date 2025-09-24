@@ -133,59 +133,126 @@ export default function CameraView({ onCapture }: CameraViewProps) {
       await video.play()
       setStatus('Camera ready')
 
-      // Apply focus constraints to keep background in focus
+      // Implement focus lock mechanism for mobile browsers
       try {
         const track = stream.getVideoTracks()[0]
         const capabilities = track.getCapabilities() as any
         
-        // Try to apply focus constraints if supported
-        const constraints: any = {}
-        
-        // Set focus mode to manual/locked to prevent autofocus on hands
-        if (capabilities?.focusMode) {
-          // Try 'manual' first, then 'locked' as fallback
-          const focusModes = ['manual', 'locked'];
-          let focusModeApplied = false;
+        // Create a more robust focus lock mechanism
+        const applyFocusLock = async () => {
+          const constraints: any = {}
           
-          for (const mode of focusModes) {
-            if (capabilities.focusMode.includes(mode)) {
+          // Try to lock focus at infinity/far distance
+          if (capabilities?.focusMode) {
+            // Try different focus modes in order of preference
+            const focusModes = ['fixed', 'locked', 'manual'];
+            let focusModeApplied = false;
+            
+            for (const mode of focusModes) {
               try {
-                constraints.focusMode = mode;
-                focusModeApplied = true;
-                break;
+                // Check if this mode is supported
+                if (capabilities.focusMode.includes(mode)) {
+                  constraints.focusMode = mode;
+                  focusModeApplied = true;
+                  console.log(`Applied focus mode: ${mode}`);
+                  break;
+                }
               } catch (e) {
-                console.warn(`Focus mode '${mode}' not supported, trying next option`);
+                console.warn(`Focus mode '${mode}' not supported`);
               }
+            }
+            
+            if (!focusModeApplied) {
+              console.warn('No suitable focus mode found, camera may continue to autofocus');
             }
           }
           
-          if (!focusModeApplied) {
-            console.warn('Neither manual nor locked focus mode is supported');
+          // Set focus distance to maximum to focus on background
+          if (capabilities?.focusDistance) {
+            try {
+              // Use maximum focus distance to keep background in focus
+              constraints.focusDistance = capabilities.focusDistance.max;
+              console.log(`Set focus distance to max: ${capabilities.focusDistance.max}`);
+            } catch (e) {
+              console.warn('Could not set focus distance');
+            }
           }
-        }
+          
+          // Apply constraints if we have any
+          if (Object.keys(constraints).length > 0) {
+            await track.applyConstraints({ advanced: [constraints] });
+            console.log('Successfully applied focus lock constraints');
+          }
+        };
         
-        // Set exposure and white balance to continuous for consistent image quality
-        if (capabilities?.exposureMode) {
-          constraints.exposureMode = 'continuous'
-        }
+        // Apply focus lock immediately
+        await applyFocusLock();
         
-        if (capabilities?.whiteBalanceMode) {
-          constraints.whiteBalanceMode = 'continuous'
-        }
+        // For mobile browsers, also try to lock focus by simulating a tap
+        // in the center of the video element after a short delay
+        setTimeout(() => {
+          try {
+            // Create a tap event on the video element to set focus point
+            const videoElement = videoRef.current;
+            if (videoElement) {
+              const rect = videoElement.getBoundingClientRect();
+              const centerX = rect.left + rect.width / 2;
+              const centerY = rect.top + rect.height / 2;
+              
+              // Create touch events to simulate tapping on the background
+              const touchStart = new TouchEvent('touchstart', {
+                bubbles: true,
+                cancelable: true,
+                touches: [{
+                  clientX: centerX,
+                  clientY: centerY,
+                  pageX: centerX,
+                  pageY: centerY,
+                  screenX: centerX,
+                  screenY: centerY,
+                  identifier: Date.now(),
+                  target: videoElement,
+                  radiusX: 2.5,
+                  radiusY: 2.5,
+                  rotationAngle: 0,
+                  force: 1
+                }]
+              });
+              
+              const touchEnd = new TouchEvent('touchend', {
+                bubbles: true,
+                cancelable: true,
+                touches: [],
+                changedTouches: [{
+                  clientX: centerX,
+                  clientY: centerY,
+                  pageX: centerX,
+                  pageY: centerY,
+                  screenX: centerX,
+                  screenY: centerY,
+                  identifier: Date.now(),
+                  target: videoElement,
+                  radiusX: 2.5,
+                  radiusY: 2.5,
+                  rotationAngle: 0,
+                  force: 0
+                }]
+              });
+              
+              // Dispatch touch events to simulate tap
+              videoElement.dispatchEvent(touchStart);
+              setTimeout(() => videoElement.dispatchEvent(touchEnd), 100);
+              
+              console.log('Simulated tap to set focus point');
+            }
+          } catch (e) {
+            console.warn('Could not simulate tap for focus:', e);
+          }
+        }, 1000);
         
-        // Set focus distance to maximum to focus on background
-        if (capabilities?.focusDistance) {
-          // Use maximum focus distance to keep background in focus
-          constraints.focusDistance = capabilities.focusDistance.max
-        }
-        
-        if (Object.keys(constraints).length > 0) {
-          await track.applyConstraints({ advanced: [constraints] })
-          console.log('Applied focus constraints:', constraints)
-        }
       } catch (err) {
-        console.warn('Could not apply focus constraints:', err)
-        // Continue even if focus constraints can't be applied
+        console.warn('Could not apply focus lock:', err)
+        // Continue even if focus lock can't be applied
       }
 
       if (!trackerRef.current) {
