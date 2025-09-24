@@ -10,13 +10,11 @@ const processingConstraints: MediaStreamConstraints = {
     facingMode: { ideal: 'environment' },
     width: { ideal: 1280 },
     height: { ideal: 720 },
-    // Use frame rate to help with focus stability
-    frameRate: { ideal: 30 }
   },
   audio: false,
 }
 
-const AUTO_CAPTURE_MS = 300
+const AUTO_CAPTURE_MS = 100
 
 type Point = { x: number; y: number }
 interface Corners {
@@ -123,11 +121,6 @@ export default function CameraView({ onCapture }: CameraViewProps) {
   const stableSinceRef = useRef<number | null>(null)
   const capturingRef = useRef(false)
   const [flash, setFlash] = useState(false)
-  
-  // Focus lock state
-  const [focusMode, setFocusMode] = useState<'normal' | 'selecting'>('normal')
-  const [focusPoint, setFocusPoint] = useState<{x: number, y: number} | null>(null)
-  const [focusLocked, setFocusLocked] = useState(false)
 
   const startStream = useCallback(async () => {
     try {
@@ -137,9 +130,6 @@ export default function CameraView({ onCapture }: CameraViewProps) {
       video.srcObject = stream
       await video.play()
       setStatus('Camera ready')
-
-      // Simplified camera initialization - focus will be controlled by user interaction
-      console.log('Camera initialized - focus will be controlled by user interaction')
 
       if (!trackerRef.current) {
         trackerRef.current = new HandTracker()
@@ -163,41 +153,6 @@ export default function CameraView({ onCapture }: CameraViewProps) {
     canvas.height = Math.floor(video.clientHeight * dpr)
     const ctx = canvas.getContext('2d')!
     ctx.clearRect(0, 0, canvas.width, canvas.height)
-
-    // Draw focus point indicator if in focus mode or focus is locked
-    if (focusMode === 'selecting' || focusLocked) {
-      const w = canvas.width
-      const h = canvas.height
-      
-      // Draw targeting reticle
-      ctx.strokeStyle = focusLocked ? '#22c55e' : '#ffffff'
-      ctx.lineWidth = 2 * dpr
-      
-      if (focusPoint) {
-        const x = focusPoint.x * w
-        const y = focusPoint.y * h
-        const size = 30 * dpr
-        
-        // Draw crosshair
-        ctx.beginPath()
-        ctx.moveTo(x - size, y)
-        ctx.lineTo(x + size, y)
-        ctx.moveTo(x, y - size)
-        ctx.lineTo(x, y + size)
-        ctx.stroke()
-        
-        // Draw circle
-        ctx.beginPath()
-        ctx.arc(x, y, size / 2, 0, Math.PI * 2)
-        ctx.stroke()
-      } else if (focusMode === 'selecting') {
-        // Draw instruction text
-        ctx.fillStyle = '#ffffff'
-        ctx.font = `${16 * dpr}px sans-serif`
-        ctx.textAlign = 'center'
-        ctx.fillText('Tap on background to set focus', w / 2, h / 2)
-      }
-    }
 
     // fingertips for debugging
     ctx.fillStyle = '#00ff88'
@@ -242,7 +197,7 @@ export default function CameraView({ onCapture }: CameraViewProps) {
       ctx.closePath()
       ctx.stroke()
     }
-  }, [currentCorners, focusLocked, focusMode, focusPoint, gestureValid, gestureStable])
+  }, [currentCorners, gestureValid, gestureStable])
 
   const triggerFlashAndHaptic = useCallback(() => {
     setFlash(true)
@@ -258,50 +213,6 @@ export default function CameraView({ onCapture }: CameraViewProps) {
         void audio.play()
       }
     } catch {}
-  }, [])
-
-  // Focus lock functions
-  const toggleFocusMode = useCallback(() => {
-    if (focusMode === 'normal') {
-      setFocusMode('selecting')
-      setStatus('Tap on the background to set focus point')
-    } else {
-      setFocusMode('normal')
-      setFocusPoint(null)
-      setStatus('Camera ready')
-    }
-  }, [focusMode])
-
-  const handleVideoTap = useCallback((e: React.TouchEvent<HTMLVideoElement>) => {
-    if (focusMode !== 'selecting') return
-    
-    const video = videoRef.current
-    if (!video) return
-    
-    const rect = video.getBoundingClientRect()
-    const touch = e.touches[0] || e.changedTouches[0]
-    const x = touch.clientX - rect.left
-    const y = touch.clientY - rect.top
-    
-    // Convert to relative coordinates (0-1)
-    const relativeX = x / rect.width
-    const relativeY = y / rect.height
-    
-    setFocusPoint({ x: relativeX, y: relativeY })
-    setFocusMode('normal')
-    setFocusLocked(true)
-    setStatus('Focus locked on background')
-    
-    // Provide haptic feedback
-    if ('vibrate' in navigator) {
-      try { navigator.vibrate(50) } catch {}
-    }
-  }, [focusMode])
-
-  const resetFocusLock = useCallback(() => {
-    setFocusLocked(false)
-    setFocusPoint(null)
-    setStatus('Camera ready')
   }, [])
 
   const captureInternal = useCallback(async (corners: Corners | null) => {
@@ -455,8 +366,6 @@ export default function CameraView({ onCapture }: CameraViewProps) {
         playsInline
         muted
         autoPlay
-        onClick={toggleFocusMode}
-        onTouchStart={handleVideoTap}
       />
       <canvas
         ref={canvasRef}
@@ -465,35 +374,6 @@ export default function CameraView({ onCapture }: CameraViewProps) {
 
       {flash && (
         <div className="absolute inset-0 bg-white/80 pointer-events-none" />
-      )}
-
-      {/* Focus Lock Button */}
-      <button
-        onClick={toggleFocusMode}
-        className={`absolute bottom-4 left-4 px-4 py-2 rounded-lg text-white font-medium ${
-          focusMode === 'selecting' 
-            ? 'bg-yellow-500' 
-            : focusLocked 
-              ? 'bg-green-500' 
-              : 'bg-gray-700'
-        }`}
-      >
-        {focusMode === 'selecting' 
-          ? 'Selecting Focus...' 
-          : focusLocked 
-            ? 'Focus Locked' 
-            : 'Lock Focus'
-        }
-      </button>
-
-      {/* Reset Focus Button (only shown when focus is locked) */}
-      {focusLocked && (
-        <button
-          onClick={resetFocusLock}
-          className="absolute bottom-4 left-40 px-4 py-2 rounded-lg bg-red-500 text-white font-medium"
-        >
-          Reset Focus
-        </button>
       )}
 
       <div className="pointer-events-none absolute inset-0 flex items-start justify-center pt-6">
