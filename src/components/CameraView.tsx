@@ -10,6 +10,8 @@ const processingConstraints: MediaStreamConstraints = {
     facingMode: { ideal: 'environment' },
     width: { ideal: 1280 },
     height: { ideal: 720 },
+    // Use frame rate to help with focus stability
+    frameRate: { ideal: 30 }
   },
   audio: false,
 }
@@ -130,6 +132,40 @@ export default function CameraView({ onCapture }: CameraViewProps) {
       video.srcObject = stream
       await video.play()
       setStatus('Camera ready')
+
+      // Apply focus constraints to keep background in focus
+      try {
+        const track = stream.getVideoTracks()[0]
+        const capabilities = track.getCapabilities() as any
+        
+        // Try to apply focus constraints if supported
+        const constraints: any = {}
+        
+        if (capabilities?.focusMode) {
+          constraints.focusMode = 'continuous'
+        }
+        
+        if (capabilities?.exposureMode) {
+          constraints.exposureMode = 'continuous'
+        }
+        
+        if (capabilities?.whiteBalanceMode) {
+          constraints.whiteBalanceMode = 'continuous'
+        }
+        
+        if (capabilities?.focusDistance) {
+          // Set focus distance to infinity or far distance to keep background in focus
+          constraints.focusDistance = capabilities.focusDistance.max || 2.0
+        }
+        
+        if (Object.keys(constraints).length > 0) {
+          await track.applyConstraints({ advanced: [constraints] })
+          console.log('Applied focus constraints:', constraints)
+        }
+      } catch (err) {
+        console.warn('Could not apply focus constraints:', err)
+        // Continue even if focus constraints can't be applied
+      }
 
       if (!trackerRef.current) {
         trackerRef.current = new HandTracker()
