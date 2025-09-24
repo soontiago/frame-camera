@@ -123,6 +123,11 @@ export default function CameraView({ onCapture }: CameraViewProps) {
   const stableSinceRef = useRef<number | null>(null)
   const capturingRef = useRef(false)
   const [flash, setFlash] = useState(false)
+  
+  // Focus lock state
+  const [focusMode, setFocusMode] = useState<'normal' | 'selecting'>('normal')
+  const [focusPoint, setFocusPoint] = useState<{x: number, y: number} | null>(null)
+  const [focusLocked, setFocusLocked] = useState(false)
 
   const startStream = useCallback(async () => {
     try {
@@ -133,127 +138,8 @@ export default function CameraView({ onCapture }: CameraViewProps) {
       await video.play()
       setStatus('Camera ready')
 
-      // Implement focus lock mechanism for mobile browsers
-      try {
-        const track = stream.getVideoTracks()[0]
-        const capabilities = track.getCapabilities() as any
-        
-        // Create a more robust focus lock mechanism
-        const applyFocusLock = async () => {
-          const constraints: any = {}
-          
-          // Try to lock focus at infinity/far distance
-          if (capabilities?.focusMode) {
-            // Try different focus modes in order of preference
-            const focusModes = ['fixed', 'locked', 'manual'];
-            let focusModeApplied = false;
-            
-            for (const mode of focusModes) {
-              try {
-                // Check if this mode is supported
-                if (capabilities.focusMode.includes(mode)) {
-                  constraints.focusMode = mode;
-                  focusModeApplied = true;
-                  console.log(`Applied focus mode: ${mode}`);
-                  break;
-                }
-              } catch (e) {
-                console.warn(`Focus mode '${mode}' not supported`);
-              }
-            }
-            
-            if (!focusModeApplied) {
-              console.warn('No suitable focus mode found, camera may continue to autofocus');
-            }
-          }
-          
-          // Set focus distance to maximum to focus on background
-          if (capabilities?.focusDistance) {
-            try {
-              // Use maximum focus distance to keep background in focus
-              constraints.focusDistance = capabilities.focusDistance.max;
-              console.log(`Set focus distance to max: ${capabilities.focusDistance.max}`);
-            } catch (e) {
-              console.warn('Could not set focus distance');
-            }
-          }
-          
-          // Apply constraints if we have any
-          if (Object.keys(constraints).length > 0) {
-            await track.applyConstraints({ advanced: [constraints] });
-            console.log('Successfully applied focus lock constraints');
-          }
-        };
-        
-        // Apply focus lock immediately
-        await applyFocusLock();
-        
-        // For mobile browsers, also try to lock focus by simulating a tap
-        // in the center of the video element after a short delay
-        setTimeout(() => {
-          try {
-            // Create a tap event on the video element to set focus point
-            const videoElement = videoRef.current;
-            if (videoElement) {
-              const rect = videoElement.getBoundingClientRect();
-              const centerX = rect.left + rect.width / 2;
-              const centerY = rect.top + rect.height / 2;
-              
-              // Create touch events to simulate tapping on the background
-              const touchStart = new TouchEvent('touchstart', {
-                bubbles: true,
-                cancelable: true,
-                touches: [{
-                  clientX: centerX,
-                  clientY: centerY,
-                  pageX: centerX,
-                  pageY: centerY,
-                  screenX: centerX,
-                  screenY: centerY,
-                  identifier: Date.now(),
-                  target: videoElement,
-                  radiusX: 2.5,
-                  radiusY: 2.5,
-                  rotationAngle: 0,
-                  force: 1
-                }]
-              });
-              
-              const touchEnd = new TouchEvent('touchend', {
-                bubbles: true,
-                cancelable: true,
-                touches: [],
-                changedTouches: [{
-                  clientX: centerX,
-                  clientY: centerY,
-                  pageX: centerX,
-                  pageY: centerY,
-                  screenX: centerX,
-                  screenY: centerY,
-                  identifier: Date.now(),
-                  target: videoElement,
-                  radiusX: 2.5,
-                  radiusY: 2.5,
-                  rotationAngle: 0,
-                  force: 0
-                }]
-              });
-              
-              // Dispatch touch events to simulate tap
-              videoElement.dispatchEvent(touchStart);
-              setTimeout(() => videoElement.dispatchEvent(touchEnd), 100);
-              
-              console.log('Simulated tap to set focus point');
-            }
-          } catch (e) {
-            console.warn('Could not simulate tap for focus:', e);
-          }
-        }, 1000);
-        
-      } catch (err) {
-        console.warn('Could not apply focus lock:', err)
-        // Continue even if focus lock can't be applied
-      }
+      // Simplified camera initialization - focus will be controlled by user interaction
+      console.log('Camera initialized - focus will be controlled by user interaction')
 
       if (!trackerRef.current) {
         trackerRef.current = new HandTracker()
@@ -277,6 +163,41 @@ export default function CameraView({ onCapture }: CameraViewProps) {
     canvas.height = Math.floor(video.clientHeight * dpr)
     const ctx = canvas.getContext('2d')!
     ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+    // Draw focus point indicator if in focus mode or focus is locked
+    if (focusMode === 'selecting' || focusLocked) {
+      const w = canvas.width
+      const h = canvas.height
+      
+      // Draw targeting reticle
+      ctx.strokeStyle = focusLocked ? '#22c55e' : '#ffffff'
+      ctx.lineWidth = 2 * dpr
+      
+      if (focusPoint) {
+        const x = focusPoint.x * w
+        const y = focusPoint.y * h
+        const size = 30 * dpr
+        
+        // Draw crosshair
+        ctx.beginPath()
+        ctx.moveTo(x - size, y)
+        ctx.lineTo(x + size, y)
+        ctx.moveTo(x, y - size)
+        ctx.lineTo(x, y + size)
+        ctx.stroke()
+        
+        // Draw circle
+        ctx.beginPath()
+        ctx.arc(x, y, size / 2, 0, Math.PI * 2)
+        ctx.stroke()
+      } else if (focusMode === 'selecting') {
+        // Draw instruction text
+        ctx.fillStyle = '#ffffff'
+        ctx.font = `${16 * dpr}px sans-serif`
+        ctx.textAlign = 'center'
+        ctx.fillText('Tap on background to set focus', w / 2, h / 2)
+      }
+    }
 
     // fingertips for debugging
     ctx.fillStyle = '#00ff88'
@@ -321,7 +242,7 @@ export default function CameraView({ onCapture }: CameraViewProps) {
       ctx.closePath()
       ctx.stroke()
     }
-  }, [currentCorners, gestureValid, gestureStable])
+  }, [currentCorners, focusLocked, focusMode, focusPoint, gestureValid, gestureStable])
 
   const triggerFlashAndHaptic = useCallback(() => {
     setFlash(true)
@@ -337,6 +258,50 @@ export default function CameraView({ onCapture }: CameraViewProps) {
         void audio.play()
       }
     } catch {}
+  }, [])
+
+  // Focus lock functions
+  const toggleFocusMode = useCallback(() => {
+    if (focusMode === 'normal') {
+      setFocusMode('selecting')
+      setStatus('Tap on the background to set focus point')
+    } else {
+      setFocusMode('normal')
+      setFocusPoint(null)
+      setStatus('Camera ready')
+    }
+  }, [focusMode])
+
+  const handleVideoTap = useCallback((e: React.TouchEvent<HTMLVideoElement>) => {
+    if (focusMode !== 'selecting') return
+    
+    const video = videoRef.current
+    if (!video) return
+    
+    const rect = video.getBoundingClientRect()
+    const touch = e.touches[0] || e.changedTouches[0]
+    const x = touch.clientX - rect.left
+    const y = touch.clientY - rect.top
+    
+    // Convert to relative coordinates (0-1)
+    const relativeX = x / rect.width
+    const relativeY = y / rect.height
+    
+    setFocusPoint({ x: relativeX, y: relativeY })
+    setFocusMode('normal')
+    setFocusLocked(true)
+    setStatus('Focus locked on background')
+    
+    // Provide haptic feedback
+    if ('vibrate' in navigator) {
+      try { navigator.vibrate(50) } catch {}
+    }
+  }, [focusMode])
+
+  const resetFocusLock = useCallback(() => {
+    setFocusLocked(false)
+    setFocusPoint(null)
+    setStatus('Camera ready')
   }, [])
 
   const captureInternal = useCallback(async (corners: Corners | null) => {
@@ -490,6 +455,8 @@ export default function CameraView({ onCapture }: CameraViewProps) {
         playsInline
         muted
         autoPlay
+        onClick={toggleFocusMode}
+        onTouchStart={handleVideoTap}
       />
       <canvas
         ref={canvasRef}
@@ -498,6 +465,35 @@ export default function CameraView({ onCapture }: CameraViewProps) {
 
       {flash && (
         <div className="absolute inset-0 bg-white/80 pointer-events-none" />
+      )}
+
+      {/* Focus Lock Button */}
+      <button
+        onClick={toggleFocusMode}
+        className={`absolute bottom-4 left-4 px-4 py-2 rounded-lg text-white font-medium ${
+          focusMode === 'selecting' 
+            ? 'bg-yellow-500' 
+            : focusLocked 
+              ? 'bg-green-500' 
+              : 'bg-gray-700'
+        }`}
+      >
+        {focusMode === 'selecting' 
+          ? 'Selecting Focus...' 
+          : focusLocked 
+            ? 'Focus Locked' 
+            : 'Lock Focus'
+        }
+      </button>
+
+      {/* Reset Focus Button (only shown when focus is locked) */}
+      {focusLocked && (
+        <button
+          onClick={resetFocusLock}
+          className="absolute bottom-4 left-40 px-4 py-2 rounded-lg bg-red-500 text-white font-medium"
+        >
+          Reset Focus
+        </button>
       )}
 
       <div className="pointer-events-none absolute inset-0 flex items-start justify-center pt-6">
