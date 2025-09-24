@@ -17,7 +17,7 @@ export default function CaptureResult({ imageUrl, onRetake }: CaptureResultProps
     <div className="relative w-screen h-screen bg-black text-white">
       <img src={imageUrl} alt="Capture" className="absolute inset-0 w-full h-full object-contain" />
 
-      <div className="absolute bottom-6 left-0 right-0 flex justify-center gap-3">
+      <div className="absolute bottom-10 left-0 right-0 flex justify-center gap-3">
         <button
           className={`${btnBase} bg-blue-500 text-white shadow-md hover:bg-blue-600 active:bg-blue-700`}
           onClick={handleSave}
