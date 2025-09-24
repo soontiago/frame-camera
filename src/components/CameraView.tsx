@@ -141,10 +141,30 @@ export default function CameraView({ onCapture }: CameraViewProps) {
         // Try to apply focus constraints if supported
         const constraints: any = {}
         
+        // Set focus mode to manual/locked to prevent autofocus on hands
         if (capabilities?.focusMode) {
-          constraints.focusMode = 'continuous'
+          // Try 'manual' first, then 'locked' as fallback
+          const focusModes = ['manual', 'locked'];
+          let focusModeApplied = false;
+          
+          for (const mode of focusModes) {
+            if (capabilities.focusMode.includes(mode)) {
+              try {
+                constraints.focusMode = mode;
+                focusModeApplied = true;
+                break;
+              } catch (e) {
+                console.warn(`Focus mode '${mode}' not supported, trying next option`);
+              }
+            }
+          }
+          
+          if (!focusModeApplied) {
+            console.warn('Neither manual nor locked focus mode is supported');
+          }
         }
         
+        // Set exposure and white balance to continuous for consistent image quality
         if (capabilities?.exposureMode) {
           constraints.exposureMode = 'continuous'
         }
@@ -153,9 +173,10 @@ export default function CameraView({ onCapture }: CameraViewProps) {
           constraints.whiteBalanceMode = 'continuous'
         }
         
+        // Set focus distance to maximum to focus on background
         if (capabilities?.focusDistance) {
-          // Set focus distance to infinity or far distance to keep background in focus
-          constraints.focusDistance = capabilities.focusDistance.max || 2.0
+          // Use maximum focus distance to keep background in focus
+          constraints.focusDistance = capabilities.focusDistance.max
         }
         
         if (Object.keys(constraints).length > 0) {
