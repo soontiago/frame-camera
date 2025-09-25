@@ -55,4 +55,18 @@ export class HandTracker {
 
     return hands
   }
+
+  /**
+   * Release native/wasm resources held by the underlying detector.
+   */
+  close(): void {
+    try {
+      // Some implementations expose close(); guard in case of API changes
+      if (this.detector && typeof this.detector.close === 'function') {
+        this.detector.close()
+      }
+    } catch {}
+    this.detector = null
+    this.ready = false
+  }
 }
