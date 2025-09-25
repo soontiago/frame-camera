@@ -1,6 +1,7 @@
 import React, { Suspense, useEffect, useRef, useState } from 'react'
 const CameraView = React.lazy(() => import('./components/CameraView'))
 const CameraViewV2 = React.lazy(() => import('./components/CameraViewV2'))
+const CameraViewV3 = React.lazy(() => import('./components/CameraViewV3'))
 import CaptureResult from './components/CaptureResult'
 import './index.css'
 
@@ -8,6 +9,7 @@ import './index.css'
 const VersionMap: Record<number, React.LazyExoticComponent<React.ComponentType<{ onCapture: (url: string) => void }>>> = {
   1: CameraView,
   2: CameraViewV2,
+  3: CameraViewV3,
 }
 
 const SUPPORTED_VERSIONS = Object.keys(VersionMap)
@@ -119,7 +121,7 @@ function App() {
         href="https://soon.work/"
         target="_blank"
         rel="noopener noreferrer"
-        className="fixed bottom-2 left-2 text-md font-semibold text-gray-800 opacity-30 hover:opacity-80 transition-opacity"
+        className="fixed top-2 left-2 text-md font-semibold text-gray-800 opacity-30 hover:opacity-80 transition-opacity"
       >
         @soontiago
       </a>

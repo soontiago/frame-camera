@@ -127,7 +127,7 @@ export default function CameraViewV2({ onCapture }: CameraViewProps) {
         trackerRef.current = new HandTracker()
         await trackerRef.current.initialize()
       }
-      setStatus('Hand up like you\'re holding a camera')
+      setStatus('Hands up like you\'re holding a camera')
       loop()
     } catch (err) {
       console.error(err)
