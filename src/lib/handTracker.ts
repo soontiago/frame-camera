@@ -13,21 +13,36 @@ export class HandTracker {
     const vision = await import('@mediapipe/tasks-vision')
     const { FilesetResolver, HandLandmarker } = vision
 
-    const filesetResolver = await FilesetResolver.forVisionTasks(
-      'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm'
-    )
+    // Prefer locally hosted assets under /public for fast reloads; fall back to CDN if unavailable
+    const LOCAL_WASM_BASE = '/mediapipe/wasm'
+    const CDN_WASM_BASE = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm'
+    const LOCAL_MODEL = '/mediapipe/models/hand_landmarker.task'
+    const CDN_MODEL = 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task'
 
-    this.detector = await HandLandmarker.createFromOptions(filesetResolver, {
-      baseOptions: {
-        modelAssetPath:
-          'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
-      },
-      numHands: 2,
-      runningMode: 'VIDEO',
-      minHandDetectionConfidence: 0.5,
-      minHandPresenceConfidence: 0.5,
-      minTrackingConfidence: 0.5,
-    })
+    let filesetResolver: any
+    try {
+      filesetResolver = await FilesetResolver.forVisionTasks(LOCAL_WASM_BASE)
+    } catch {
+      filesetResolver = await FilesetResolver.forVisionTasks(CDN_WASM_BASE)
+    }
+
+    // Try local model first, then CDN model
+    const tryCreate = async (modelPath: string) => {
+      return await HandLandmarker.createFromOptions(filesetResolver, {
+        baseOptions: { modelAssetPath: modelPath },
+        numHands: 2,
+        runningMode: 'VIDEO',
+        minHandDetectionConfidence: 0.5,
+        minHandPresenceConfidence: 0.5,
+        minTrackingConfidence: 0.5,
+      })
+    }
+
+    try {
+      this.detector = await tryCreate(LOCAL_MODEL)
+    } catch {
+      this.detector = await tryCreate(CDN_MODEL)
+    }
     this.ready = true
   }
 

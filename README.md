@@ -63,7 +63,7 @@ Tips:
 ## Tech stack
 - React + TypeScript + Vite
 - Tailwind CSS for UI styling
-- MediaPipe Tasks Vision (hand landmarker) loaded via CDN
+- MediaPipe Tasks Vision (hand landmarker) loaded via local assets with CDN fallback
 
 Key files:
 - `src/components/CameraView.tsx` — camera stream, gesture detection, overlay, auto-capture
@@ -83,7 +83,7 @@ This is a static site. Any static hosting works (GitHub Pages, Netlify, Vercel, 
 
 Requirements:
 - Serve over HTTPS to allow camera access
-- Allow loading of MediaPipe model and WASM from the configured CDNs
+- Allow loading of MediaPipe model and WASM from `/mediapipe/*` (local) and/or the configured CDNs
 
 Build output is generated to `dist/` via `npm run build`.
 

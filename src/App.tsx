@@ -92,7 +92,7 @@ function App() {
   }
 
   return (
-    <div className="relative w-screen h-screen">
+    <div className="w-screen h-screen">
       {/* Version selector */}
       <div className="fixed top-2 right-2 z-50">
         <select
@@ -106,16 +106,16 @@ function App() {
         </select>
       </div>
 
-      <Suspense fallback={null}>
-        {(() => {
-          const Selected = VersionMap[version] ?? VersionMap[1]
-          return <Selected onCapture={handleCapture} />
-        })()}
-      </Suspense>
+      {mode === 'camera' && (
+        <Suspense fallback={null}>
+          {(() => {
+            const Selected = VersionMap[version] ?? VersionMap[1]
+            return <Selected onCapture={handleCapture} />
+          })()}
+        </Suspense>
+      )}
       {mode === 'result' && imageUrl && (
-        <div className="absolute inset-0 z-50">
-          <CaptureResult imageUrl={imageUrl} onRetake={handleRetake} />
-        </div>
+        <CaptureResult imageUrl={imageUrl} onRetake={handleRetake} />
       )}
       <a
         href="https://soon.work/"
