@@ -24,7 +24,7 @@ const CONTACT_RELEASE_MULT = 1.4 // hysteresis: release when > threshold * this
 const MIN_TIME_BETWEEN_CAPTURES_MS = 400
 
 // Adaptive sensitivity (device + jitter)
-const CONTACT_MOBILE_BOOST = 1.5
+const CONTACT_MOBILE_BOOST = 2
 const JITTER_EMA_ALPHA = 0.35
 const JITTER_GAIN = 1.8
 
