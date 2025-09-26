@@ -16,12 +16,17 @@ const processingConstraints: MediaStreamConstraints = {
 
 // v3: no twitch trigger; capture occurs when opposing tips meet
 // Tunables for contact sensitivity (normalized coords)
-const CONTACT_SCALE = 0.22 // scales with average hand span
-const CONTACT_MIN = 0.01   // lower bound on threshold
+const CONTACT_SCALE = 0.18 // scales with average hand span
+const CONTACT_MIN = 0.004   // lower bound on threshold (allow smaller hands)
 const CONTACT_MAX = 0.05   // upper bound on threshold
 const CONTACT_HOLD_MS = 150 // require sustained contact for this long
 const CONTACT_RELEASE_MULT = 1.4 // hysteresis: release when > threshold * this
 const MIN_TIME_BETWEEN_CAPTURES_MS = 400
+
+// Adaptive sensitivity (device + jitter)
+const CONTACT_MOBILE_BOOST = 1.2
+const JITTER_EMA_ALPHA = 0.35
+const JITTER_GAIN = 1.8
 
 
 type Point = { x: number; y: number }
@@ -30,6 +35,10 @@ function distance(a: Point, b: Point): number {
   const dx = a.x - b.x
   const dy = a.y - b.y
   return Math.hypot(dx, dy)
+}
+
+function clamp(v: number, lo: number, hi: number) {
+  return Math.max(lo, Math.min(hi, v))
 }
 
 // (helpers above retained minimal for v3)
@@ -47,6 +56,11 @@ export default function CameraViewV3({ onCapture }: CameraViewProps) {
   const lastCaptureAtRef = useRef(0)
   const contactSinceRef = useRef<number | null>(null)
   const [flash, setFlash] = useState(false)
+
+  // Environment + jitter
+  const coarseInputRef = useRef(false)
+  const jitterEmaRef = useRef(0)
+  const prevTipsRef = useRef<{ Li?: Point; Lt?: Point; Ri?: Point; Rt?: Point }>({})
 
   const startStream = useCallback(async () => {
     try {
@@ -255,17 +269,38 @@ export default function CameraViewV3({ onCapture }: CameraViewProps) {
                 const spanR = distance(Ri, Rt)
                 const handsValid = spanL > minSpan && spanR > minSpan
 
-                // Dynamic threshold based on hand size
+                // Dynamic threshold based on hand size (+ jitter + device)
                 const avgSpan = (spanL + spanR) / 2
-                const contactThresh = Math.min(CONTACT_MAX, Math.max(CONTACT_MIN, avgSpan * CONTACT_SCALE))
+
+                // Estimate per-frame landmark jitter (EMA on tip deltas)
+                {
+                  const prev = prevTipsRef.current
+                  let sum = 0, n = 0
+                  const add = (p?: Point, q?: Point) => { if (p && q) { sum += distance(p, q); n++ } }
+                  add(Li, prev.Li); add(Lt, prev.Lt); add(Ri, prev.Ri); add(Rt, prev.Rt)
+                  const frameJitter = n ? (sum / n) : 0
+                  jitterEmaRef.current = jitterEmaRef.current + (frameJitter - jitterEmaRef.current) * JITTER_EMA_ALPHA
+                  prevTipsRef.current = { Li, Lt, Ri, Rt }
+                }
+                const deviceBoost = coarseInputRef.current ? CONTACT_MOBILE_BOOST : 1
+                const base = avgSpan * CONTACT_SCALE * deviceBoost
+                const contactThresh = clamp(base + jitterEmaRef.current * JITTER_GAIN, CONTACT_MIN, CONTACT_MAX)
                 const releaseThresh = contactThresh * CONTACT_RELEASE_MULT
 
                 const dIndex_same = distance(Li, Ri)
                 const dThumb_same = distance(Lt, Rt)
                 const dIndex_cross = distance(Li, Rt)
                 const dThumb_cross = distance(Lt, Ri)
-                const sameOk = dIndex_same < contactThresh && dThumb_same < contactThresh
+
+                const indexClose = dIndex_same < contactThresh
+                const thumbClose = dThumb_same < contactThresh
+                const sameOk = indexClose && thumbClose
                 const crossOk = dIndex_cross < contactThresh && dThumb_cross < contactThresh
+
+                // On phones/tablets allow single-pair contact (either top or bottom)
+                // Desktop keeps stricter "both pairs" requirement
+                const singleOkMobile = coarseInputRef.current && (indexClose || thumbClose)
+
                 // Build glow list for any individual connected pair(s)
                 const glowPairs: { a: Point; b: Point }[] = []
                 if (dIndex_same < contactThresh) glowPairs.push({ a: Li, b: Ri })
@@ -274,7 +309,7 @@ export default function CameraViewV3({ onCapture }: CameraViewProps) {
                 if (dThumb_cross < contactThresh) glowPairs.push({ a: Lt, b: Ri })
 
                 const now = performance.now()
-                const touchingNow = handsValid && (sameOk || crossOk)
+                const touchingNow = handsValid && (sameOk || crossOk || singleOkMobile)
 
                 // Hysteresis: if not touching within tighter threshold, reset when well apart
                 if (!touchingNow) {
@@ -289,7 +324,8 @@ export default function CameraViewV3({ onCapture }: CameraViewProps) {
 
                 if (touchingNow) {
                   if (contactSinceRef.current == null) contactSinceRef.current = now
-                  const heldLongEnough = now - contactSinceRef.current >= CONTACT_HOLD_MS
+                  const holdMs = coarseInputRef.current ? (CONTACT_HOLD_MS + 50) : CONTACT_HOLD_MS
+                  const heldLongEnough = now - contactSinceRef.current >= holdMs
                   if (heldLongEnough) {
                     const seq = [8, 7, 6, 5, 2, 3, 4]
                     const Lpts = seq.map((i) => ({ x: L.landmarks[i]!.x, y: L.landmarks[i]!.y }))
