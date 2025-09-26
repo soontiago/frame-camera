@@ -24,9 +24,9 @@ const CONTACT_RELEASE_MULT = 1.4 // hysteresis: release when > threshold * this
 const MIN_TIME_BETWEEN_CAPTURES_MS = 400
 
 // Adaptive sensitivity (device + jitter)
-const CONTACT_MOBILE_BOOST = 3.5
+const CONTACT_MOBILE_BOOST = 4.0
 const JITTER_EMA_ALPHA = 0.35
-const JITTER_GAIN = 2
+const JITTER_GAIN = 2.4
 
 
 type Point = { x: number; y: number }
@@ -324,7 +324,7 @@ export default function CameraViewV3({ onCapture }: CameraViewProps) {
 
                 if (touchingNow) {
                   if (contactSinceRef.current == null) contactSinceRef.current = now
-                  const holdMs = coarseInputRef.current ? (CONTACT_HOLD_MS + 20) : CONTACT_HOLD_MS
+                  const holdMs = coarseInputRef.current ? (CONTACT_HOLD_MS + 0) : CONTACT_HOLD_MS
                   const heldLongEnough = now - contactSinceRef.current >= holdMs
                   if (heldLongEnough) {
                     const seq = [8, 7, 6, 5, 2, 3, 4]
