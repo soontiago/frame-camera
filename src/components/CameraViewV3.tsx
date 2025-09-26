@@ -19,14 +19,14 @@ const processingConstraints: MediaStreamConstraints = {
 const CONTACT_SCALE = 0.18 // scales with average hand span
 const CONTACT_MIN = 0.005   // lower bound on threshold (allow smaller hands)
 const CONTACT_MAX = 0.05   // upper bound on threshold
-const CONTACT_HOLD_MS = 150 // require sustained contact for this long
+const CONTACT_HOLD_MS = 120 // require sustained contact for this long
 const CONTACT_RELEASE_MULT = 1.4 // hysteresis: release when > threshold * this
 const MIN_TIME_BETWEEN_CAPTURES_MS = 400
 
 // Adaptive sensitivity (device + jitter)
-const CONTACT_MOBILE_BOOST = 4.0
+const CONTACT_MOBILE_BOOST = 4.5
 const JITTER_EMA_ALPHA = 0.35
-const JITTER_GAIN = 2.4
+const JITTER_GAIN = 3.0
 
 
 type Point = { x: number; y: number }
