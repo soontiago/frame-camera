@@ -16,7 +16,7 @@ const processingConstraints: MediaStreamConstraints = {
 
 // v3: no twitch trigger; capture occurs when opposing tips meet
 // Tunables for contact sensitivity (normalized coords)
-const CONTACT_SCALE = 0.18 // scales with average hand span
+const CONTACT_SCALE = 0.15 // scales with average hand span
 const CONTACT_MIN = 0.003   // lower bound on threshold (allow smaller hands)
 const CONTACT_MAX = 0.05   // upper bound on threshold
 const CONTACT_HOLD_MS = 150 // require sustained contact for this long
@@ -24,9 +24,9 @@ const CONTACT_RELEASE_MULT = 1.4 // hysteresis: release when > threshold * this
 const MIN_TIME_BETWEEN_CAPTURES_MS = 400
 
 // Adaptive sensitivity (device + jitter)
-const CONTACT_MOBILE_BOOST = 10
+const CONTACT_MOBILE_BOOST = 12
 const JITTER_EMA_ALPHA = 0.35
-const JITTER_GAIN = 8
+const JITTER_GAIN = 9
 
 
 type Point = { x: number; y: number }
