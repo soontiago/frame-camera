@@ -270,7 +270,7 @@ export default function CameraView({ onCapture }: CameraViewProps) {
           let statusMsg = ''
 
           if (hands.length === 0) {
-            statusMsg = 'Hands up!'
+            statusMsg = 'Hands up! 🙌'
           } else if (hands.length === 1) {
             statusMsg = 'Other hand up as well'
           } else if (hands.length >= 2) {
