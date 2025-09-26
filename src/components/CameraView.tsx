@@ -310,7 +310,7 @@ export default function CameraView({ onCapture }: CameraViewProps) {
                   stableSinceRef.current = null
                 }
                 // Helper text: once contact threshold reached (valid), prompt to hold steady
-                statusMsg = 'Contact your fingertips to Frame and Capture'
+                statusMsg = 'Frame with your hands and touch tips'
                 if (valid) {
                   statusMsg = 'Hold steady'
                 }
@@ -323,7 +323,7 @@ export default function CameraView({ onCapture }: CameraViewProps) {
                 }
               }
             } else {
-              statusMsg = 'Contact your fingertips to Frame and Capture'
+              statusMsg = 'Frame with your hands and touch tips'
             }
           }
 
